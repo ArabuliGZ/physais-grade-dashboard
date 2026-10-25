@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Исследование связи выполнения домашних заданий и учебных результатов по физике, 2012–2026.">
+  <title>PhysAIS — ДЗ и учебные результаты</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#overview" aria-label="PhysAIs — к началу страницы">
+      <img class="brand-mark" src="data:image/png;base64,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" alt="">
+      <span class="brand-text"><strong>PhysAIs</strong><small>Аналитика оценок</small></span>
+    </a>
+    <nav aria-label="Разделы исследования">
+      <a href="#overview">Обзор</a>
+      <a href="#distribution">Распределение оценок</a>
+      <a href="#correlation">ДЗ и оценки</a>
+      <a href="#ai-impact">Влияние ИИ</a>
+      <a href="#homework-experiment">Эксперимент с ДЗ</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="overview shell" id="overview">
+      <div class="title-grid">
+        <h1>Домашняя работа и учебные результаты</h1>
+      </div>
+
+      <div class="stats" aria-label="Общая статистика базы">
+        <article><strong id="stat-years">14</strong><span>учебных лет</span></article>
+        <article><strong id="stat-groups">21</strong><span>уникальный класс</span></article>
+        <article><strong id="stat-students">585</strong><span>уникальных учеников</span></article>
+        <article><strong id="stat-grades">41 095</strong><span>оценок за работы</span></article>
+      </div>
+    </section>
+
+    <section class="section shell" id="distribution">
+      <div class="section-heading">
+        <span class="section-number">01</span>
+        <div>
+          <h2>Все годы и все классы</h2>
+        </div>
+      </div>
+
+      <div class="control-row distribution-control-row">
+        <div class="segmented" id="distribution-controls" role="group" aria-label="Параллель для распределения оценок">
+          <button class="active" data-grade="0">Общая статистика</button>
+          <button data-grade="7">7 класс</button>
+          <button data-grade="8">8 класс</button>
+          <button data-grade="9">9 класс</button>
+          <button data-grade="10">10 класс</button>
+          <button data-grade="11">11 класс</button>
+        </div>
+      </div>
+
+      <article class="research-panel distribution-panel">
+        <div class="panel-header">
+          <div>
+            <strong id="distribution-title">Доля оценок 2–5 · общая статистика</strong>
+          </div>
+          <div class="grade-legend" aria-label="Легенда оценок">
+            <span><i class="g2"></i>2</span>
+            <span><i class="g3"></i>3</span>
+            <span><i class="g4"></i>4</span>
+            <span><i class="g5"></i>5</span>
+          </div>
+        </div>
+        <div id="archive-distribution-chart" class="archive-chart" role="img" aria-label="Среднее распределение оценок по всем учебным годам и классам"></div>
+      </article>
+    </section>
+
+    <section class="section section-muted" id="correlation">
+      <div class="shell">
+        <div class="section-heading">
+          <span class="section-number">02</span>
+          <div>
+            <h2>Связь выполнения ДЗ с результатами</h2>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <div class="segmented" id="grade-controls" role="group" aria-label="Класс">
+            <button class="active" data-grade="0">Все классы</button>
+            <button data-grade="7">7 класс</button>
+            <button data-grade="8">8 класс</button>
+            <button data-grade="9">9 класс</button>
+            <button data-grade="10">10 класс</button>
+            <button data-grade="11">11 класс</button>
+          </div>
+        </div>
+
+        <article class="research-panel scatter-panel">
+          <div class="panel-header">
+            <div>
+              <strong id="scatter-title">Все классы · все годы</strong>
+            </div>
+            <div class="correlation-value"><span>r</span><strong id="scatter-r">0,42</strong></div>
+          </div>
+          <div id="scatter-legend" class="class-legend" aria-label="Цвета классов"></div>
+          <div id="scatter-chart" class="scatter-chart" role="img" aria-label="Диаграмма связи выполнения домашних заданий и оценок"></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section shell" id="ai-impact">
+      <div class="section-heading">
+        <span class="section-number">03</span>
+        <div>
+          <h2>Влияние ИИ</h2>
+        </div>
+      </div>
+
+      <article class="research-panel ai-panel">
+        <div class="panel-header">
+          <strong>До и после появления ИИ</strong>
+          <div class="grade-legend" aria-label="Легенда оценок">
+            <span><i class="g2"></i>2</span>
+            <span><i class="g3"></i>3</span>
+            <span><i class="g4"></i>4</span>
+            <span><i class="g5"></i>5</span>
+          </div>
+        </div>
+        <div class="control-row ai-grade-control-row">
+          <div class="segmented" id="ai-grade-controls" role="group" aria-label="Классы для сравнения до и после появления ИИ">
+            <button type="button" class="active" data-grade="0">8–9 классы</button>
+            <button type="button" data-grade="8">8 класс</button>
+            <button type="button" data-grade="9">9 класс</button>
+          </div>
+        </div>
+        <div id="ai-era-chart" class="ai-era-grid" role="img" aria-label="Распределение оценок до и после появления ИИ"></div>
+      </article>
+
+      <article class="research-panel ai-panel ai-cohorts-panel">
+        <div class="panel-header">
+          <strong>Только классы эпохи ИИ</strong>
+        </div>
+        <div class="control-row ai-grade-control-row">
+          <div class="segmented" id="ai-cohort-grade-controls" role="group" aria-label="Классы для среднего по четырём классам">
+            <button type="button" class="active" data-grade="0">8–9 классы</button>
+            <button type="button" data-grade="8">8 класс</button>
+            <button type="button" data-grade="9">9 класс</button>
+          </div>
+        </div>
+        <div id="ai-cohort-chart" class="ai-era-grid" role="img" aria-label="Среднее распределение оценок в четырёх классах до ИИ и в 2025–2026"></div>
+      </article>
+
+      <article class="research-panel ai-panel ai-parallels-panel">
+        <div class="panel-header">
+          <strong>Сравнение класса с самим собой</strong>
+        </div>
+        <div class="control-row ai-grade-control-row">
+          <div class="segmented" id="ai-parallel-grade-controls" role="group" aria-label="Класс для сравнения с самим собой">
+            <button type="button" class="active" data-grade="8">8 класс</button>
+            <button type="button" data-grade="9">9 класс</button>
+          </div>
+        </div>
+        <div id="ai-parallel-chart" class="ai-parallel-list" role="img" aria-label="Распределение оценок в восьмой и девятой параллелях до ИИ и в 2025–2026"></div>
+      </article>
+    </section>
+
+    <section class="section shell" id="homework-experiment">
+      <div class="section-heading">
+        <span class="section-number">04</span>
+        <div><h2>Проверка ДЗ: эксперимент</h2></div>
+      </div>
+      <article class="research-panel experiment-panel">
+        <div class="panel-header">
+          <strong>9Б и 9Д · 2025–2026</strong>
+          <span>ДЗ задавалось, ответы выдавались</span>
+        </div>
+        <div class="experiment-controls">
+          <div class="segmented" id="experiment-metric-controls" role="group" aria-label="Показатель эксперимента">
+            <button type="button" class="active" data-metric="kr" aria-pressed="true">Средняя оценка КР</button>
+            <button type="button" data-metric="low" aria-pressed="false">Доля двоек на КР</button>
+            <button type="button" data-metric="quiz" aria-pressed="false">Летучки</button>
+          </div>
+          <div class="segmented" id="experiment-sample-controls" role="group" aria-label="Состав учеников для эксперимента">
+            <button type="button" class="active" data-sample="balanced" aria-pressed="true">Одни и те же ученики</button>
+            <button type="button" data-sample="available" aria-pressed="false">Все писавшие</button>
+          </div>
+        </div>
+        <div class="experiment-chart-heading"><h3>Как менялся разрыв между классами</h3><span id="experiment-sample-count"></span></div>
+        <p class="experiment-definition" id="experiment-gap-definition">Разрыв = средняя оценка 9Б − средняя оценка 9Д</p>
+        <div id="experiment-gap-chart" class="experiment-chart" role="img" aria-label="Разрыв между классами по блокам эксперимента"></div>
+        <div class="experiment-key"><span><i></i>Разрыв Б − Д</span><span><i class="baseline-key"></i>Средний разрыв до опыта · блоки 2–3</span></div>
+      </article>
+      <details class="experiment-details research-panel">
+        <summary>Индивидуальные изменения: кому стало хуже</summary>
+        <p>КР тех же 40 учеников. Из изменения результата ребёнка вычтено среднее изменение другого класса. Точка — ребёнок в своём блоке без проверки ДЗ.</p>
+        <div id="experiment-risk-chart" class="experiment-chart" role="img" aria-label="Индивидуальные изменения оценок КР относительно изменения другого класса"></div>
+        <div id="experiment-risk-counts" class="experiment-risk-counts"></div>
+      </details>
+    </section>
+
+  </main>
+
+  <footer class="shell">
+    <span>Обновлено <time id="updated-date"></time></span>
+  </footer>
+
+  <div class="chart-modal" id="homework-percent-modal" hidden>
+    <div class="chart-modal-card" role="dialog" aria-modal="true" aria-labelledby="homework-percent-title">
+      <div class="chart-modal-header">
+        <h3 id="homework-percent-title">Распределение выполнения ДЗ</h3>
+        <button id="homework-percent-close" type="button" aria-label="Закрыть">×</button>
+      </div>
+      <div class="threshold-legend" aria-label="Границы оценок">
+        <span class="g2">2 · менее 50%</span>
+        <span class="g3">3 · 50–69%</span>
+        <span class="g4">4 · 70–84%</span>
+        <span class="g5">5 · от 85%</span>
+      </div>
+      <div id="homework-percent-chart" class="homework-percent-chart" role="img" aria-label="Гистограмма процентов выполнения домашних заданий"></div>
+    </div>
+  </div>
+
+  <div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
