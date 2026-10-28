@@ -100,8 +100,7 @@ def build_experiment(con):
 
 if __name__ == "__main__":
     import json
-    import sqlite3
     from pathlib import Path
-    con = sqlite3.connect(Path(__file__).resolve().parent.parent / "Оценки_Арабули_2012-2026.sqlite")
-    con.row_factory = sqlite3.Row
+    from research_scope import connect_study_database
+    con = connect_study_database(Path(__file__).resolve().parent.parent / "Оценки_Арабули_2012-2026.sqlite")
     print(json.dumps(build_experiment(con), ensure_ascii=False, indent=2))

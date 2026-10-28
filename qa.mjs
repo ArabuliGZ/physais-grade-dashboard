@@ -31,9 +31,18 @@ async function inspect(name, viewport, screenshot) {
   );
   interaction.timelineCountsMatch = await page.evaluate(() => {
     const years = window.DASHBOARD_DATA.yearTimeline;
-    return years.length === 14 && years.reduce((sum, year) => sum + year.classCount, 0) === 62 &&
+    return years.length === 14 && years.reduce((sum, year) => sum + year.classCount, 0) === 60 &&
+      years.find(year => year.year === '2022-2023')?.classCount === 1 &&
+      years.find(year => year.year === '2024-2025')?.classCount === 4 &&
       years.every(year => year.classes.length === year.classCount && year.classes.every(group => group.students > 0)) &&
       years.at(-1).classes.filter(group => group.checking === 'partial').length === 2;
+  });
+  interaction.excludedClassesAbsent = await page.evaluate(() => {
+    const source = JSON.stringify(window.DASHBOARD_DATA);
+    return !source.includes('11 база') && !source.includes('10Эк') &&
+      window.DASHBOARD_DATA.summary.groups === 20 &&
+      window.DASHBOARD_DATA.summary.students === 555 &&
+      window.DASHBOARD_DATA.summary.independentGrades === 40402;
   });
   await lastYear.hover();
   interaction.timelineHoverWorks = await page.locator('#timeline-tooltip').isVisible() &&
@@ -154,6 +163,8 @@ async function inspect(name, viewport, screenshot) {
     stoppedTransitionCards: document.querySelectorAll('#stopped-analysis .stopped-transition-card').length,
     stoppedChangeSegments: document.querySelectorAll('#stopped-analysis .stopped-change-segment').length,
     groups: document.querySelector('#stat-groups')?.textContent,
+    students: document.querySelector('#stat-students')?.textContent,
+    independentGrades: document.querySelector('#stat-grades')?.textContent,
     homeworkStatPresent: Boolean(document.querySelector('#stat-homework')),
     overflow: document.documentElement.scrollWidth - window.innerWidth,
     height: document.documentElement.scrollHeight,
@@ -191,9 +202,9 @@ const failed = Object.values(results).some(result =>
   result.errors.length || !result.faviconPresent || !result.brandLogoLoaded || result.charts < 2 || result.classRows !== 0 ||
   !result.experimentSamplesWork || !result.experimentScaleStable || !result.experimentLowWorks || !result.experimentQuizWorks ||
   result.experimentGapPoints !== 5 || !result.experimentStudents.includes('40 учеников') ||
-  result.distributionSegments !== 16 || result.homeworkHighlights !== 1 || !result.homeworkPeriodsMatch || result.inferredHomeworkPeriods !== 2 || result.points < 1 || result.pointGrades < 1 || result.groups !== '21' ||
+  result.distributionSegments !== 16 || result.homeworkHighlights !== 1 || !result.homeworkPeriodsMatch || result.inferredHomeworkPeriods !== 2 || result.points < 1 || result.pointGrades < 1 || result.groups !== '20' || result.students !== '555' || result.independentGrades?.replace(/\s/g, ' ') !== '40 402' ||
   result.aiEraCards !== 2 || result.aiGradeControls !== 3 || result.aiCohortGradeControls !== 3 || result.aiCohortCards !== 2 || result.aiParallelCards !== 2 || result.aiParallelGroups !== 1 || result.aiParallelGradeControls !== 2 || result.aiStacks !== 12 || result.aiSegments !== 48 ||
-  !result.timelineBeforeDistribution || !result.timelineCountsMatch || !result.timelineHoverWorks ||
+  !result.timelineBeforeDistribution || !result.timelineCountsMatch || !result.excludedClassesAbsent || !result.timelineHoverWorks ||
   !result.timelineTapWorks || !result.timelineCloses || result.timelineYears !== 14 || result.timelineLastYearSegments !== 4 ||
   !result.stoppedAdjustmentWorks || !result.histogramInitiallyHidden || !result.histogramOpensOnHover ||
   !result.histogramOpensOnClick || !result.histogramClosesOnClick || !result.histogramScaleStable || !result.histogramCountsMatch ||

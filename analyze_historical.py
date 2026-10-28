@@ -3,12 +3,11 @@
 from collections import Counter, defaultdict
 from pathlib import Path
 import json
-import sqlite3
 import statistics
+from research_scope import connect_study_database
 
 DB = Path(__file__).resolve().parent.parent / "Оценки_Арабули_2012-2026.sqlite"
-con = sqlite3.connect(DB)
-con.row_factory = sqlite3.Row
+con = connect_study_database(DB)
 
 rows = con.execute(
     """SELECT en.student_id, g.group_id, g.school_year, g.grade_level,

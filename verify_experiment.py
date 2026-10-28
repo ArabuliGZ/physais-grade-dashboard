@@ -4,15 +4,14 @@ Only anonymous counts and contrasts are printed. Does not edit workbooks.
 Column choices below are intentionally independent of experiment_data.BLOCKS.
 """
 import json
-import sqlite3
 from pathlib import Path
 from statistics import mean
 from openpyxl import load_workbook
 from experiment_data import build_experiment
+from research_scope import connect_study_database
 
 root = Path(__file__).resolve().parent.parent
-con = sqlite3.connect(root / "Оценки_Арабули_2012-2026.sqlite")
-con.row_factory = sqlite3.Row
+con = connect_study_database(root / "Оценки_Арабули_2012-2026.sqlite")
 experiment = build_experiment(con)
 raw = {}
 for group, size in (("9Б", 26), ("9Д", 28)):

@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 import math
-import sqlite3
 import statistics
 from collections import defaultdict
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
 from experiment_data import build_experiment
+from research_scope import connect_study_database
 
 
 HERE = Path(__file__).resolve().parent
@@ -51,8 +51,7 @@ def pearson(points):
     return sum((x - mx) * (y - my) for x, y in points) / math.sqrt(denx * deny)
 
 
-con = sqlite3.connect(DB)
-con.row_factory = sqlite3.Row
+con = connect_study_database(DB)
 
 # Mean block KPI (КПД) of checked homework. This is the same measure used in
 # the reviewed 7–9 report and can exceed 100% when bonus work is present.
