@@ -19,11 +19,31 @@ async function inspect(name, viewport, screenshot) {
   await page.goto(url, { waitUntil: 'load' });
   await page.waitForFunction(() => document.querySelector('.brand-mark')?.naturalWidth === 70);
   await page.waitForSelector('#archive-distribution-chart svg');
+  await page.waitForSelector('#year-timeline .timeline-year');
   await page.waitForSelector('#scatter-chart svg');
   await page.waitForSelector('#ai-cohort-chart .ai-era-card');
   await page.waitForSelector('#ai-parallel-chart .ai-era-card');
   await page.waitForSelector('#stopped-analysis .stopped-change-stack');
   await page.waitForSelector('#experiment-gap-chart .experiment-gap-point');
+  const lastYear = page.locator('#year-timeline .timeline-year').last();
+  interaction.timelineBeforeDistribution = await page.evaluate(() =>
+    document.querySelector('#timeline').compareDocumentPosition(document.querySelector('#distribution')) & Node.DOCUMENT_POSITION_FOLLOWING
+  );
+  interaction.timelineCountsMatch = await page.evaluate(() => {
+    const years = window.DASHBOARD_DATA.yearTimeline;
+    return years.length === 14 && years.reduce((sum, year) => sum + year.classCount, 0) === 62 &&
+      years.every(year => year.classes.length === year.classCount && year.classes.every(group => group.students > 0)) &&
+      years.at(-1).classes.filter(group => group.checking === 'partial').length === 2;
+  });
+  await lastYear.hover();
+  interaction.timelineHoverWorks = await page.locator('#timeline-tooltip').isVisible() &&
+    (await page.locator('#timeline-tooltip').textContent()).includes('9Д');
+  await page.screenshot({ path: path.join(root, '..', 'tmp', `physais-timeline-tooltip-${name}.png`) });
+  await lastYear.click();
+  await page.locator('#year-timeline .timeline-year').nth(12).hover();
+  interaction.timelineTapWorks = await page.locator('#timeline-tooltip').isVisible();
+  await page.locator('#timeline-title').click();
+  interaction.timelineCloses = !(await page.locator('#timeline-tooltip').isVisible());
   const rawReading = await page.locator('#stopped-analysis').getAttribute('aria-label');
   const changeStack = page.locator('#stopped-analysis .stopped-change-stack');
   const changeHistogram = page.locator('#stopped-change-histogram');
@@ -127,6 +147,8 @@ async function inspect(name, viewport, screenshot) {
     aiParallelGroups: document.querySelectorAll('#ai-parallel-chart .ai-parallel-group').length,
     aiParallelGradeControls: document.querySelectorAll('#ai-parallel-grade-controls button').length,
     aiStacks: document.querySelectorAll('#ai-impact .ai-stack').length,
+    timelineYears: document.querySelectorAll('#year-timeline .timeline-year').length,
+    timelineLastYearSegments: document.querySelectorAll('#year-timeline .timeline-year:last-child .timeline-year-status i').length,
     aiSegments: document.querySelectorAll('#ai-impact .ai-bar-segment').length,
     stoppedPopulation: document.querySelector('#stopped-policy-population')?.textContent,
     stoppedTransitionCards: document.querySelectorAll('#stopped-analysis .stopped-transition-card').length,
@@ -139,6 +161,7 @@ async function inspect(name, viewport, screenshot) {
   results[name].errors = errors;
   await page.screenshot({ path: screenshot, fullPage: true });
   await page.locator('.topbar').screenshot({ path: path.join(root, '..', 'tmp', `physais-topbar-${name}.png`) });
+  await page.locator('#timeline').screenshot({ path: path.join(root, '..', 'tmp', `physais-timeline-${name}.png`) });
   await page.locator('#distribution').screenshot({ path: path.join(root, '..', 'tmp', `physais-distribution-${name}.png`) });
   await page.locator('#correlation').screenshot({ path: path.join(root, '..', 'tmp', `physais-correlation-${name}.png`) });
   await page.locator('#ai-impact').screenshot({ path: path.join(root, '..', 'tmp', `physais-ai-${name}.png`) });
@@ -170,6 +193,8 @@ const failed = Object.values(results).some(result =>
   result.experimentGapPoints !== 5 || !result.experimentStudents.includes('40 учеников') ||
   result.distributionSegments !== 16 || result.homeworkHighlights !== 1 || !result.homeworkPeriodsMatch || result.inferredHomeworkPeriods !== 2 || result.points < 1 || result.pointGrades < 1 || result.groups !== '21' ||
   result.aiEraCards !== 2 || result.aiGradeControls !== 3 || result.aiCohortGradeControls !== 3 || result.aiCohortCards !== 2 || result.aiParallelCards !== 2 || result.aiParallelGroups !== 1 || result.aiParallelGradeControls !== 2 || result.aiStacks !== 12 || result.aiSegments !== 48 ||
+  !result.timelineBeforeDistribution || !result.timelineCountsMatch || !result.timelineHoverWorks ||
+  !result.timelineTapWorks || !result.timelineCloses || result.timelineYears !== 14 || result.timelineLastYearSegments !== 4 ||
   !result.stoppedAdjustmentWorks || !result.histogramInitiallyHidden || !result.histogramOpensOnHover ||
   !result.histogramOpensOnClick || !result.histogramClosesOnClick || !result.histogramScaleStable || !result.histogramCountsMatch ||
   !result.stoppedPopulation?.includes('116') || result.stoppedTransitionCards !== 3 || result.stoppedChangeSegments !== 5 ||

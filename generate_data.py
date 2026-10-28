@@ -270,6 +270,35 @@ rosters = defaultdict(set)
 for row in con.execute("SELECT group_id,student_id FROM enrollments"):
     rosters[row["group_id"]].add(row["student_id"])
 
+coverage_by_group = defaultdict(set)
+for row in con.execute("SELECT group_id,status FROM homework_coverage"):
+    coverage_by_group[row["group_id"]].add(row["status"])
+
+year_timeline = []
+for school_year in sorted({group["school_year"] for group in cohort_groups}):
+    classes = []
+    for group in cohort_groups:
+        if group["school_year"] != school_year:
+            continue
+        statuses = coverage_by_group[group["group_id"]]
+        if "assigned_answers_given_not_checked" in statuses or (
+            "recorded_check" in statuses and "no_recorded_check" in statuses
+        ):
+            checking = "partial"
+        elif "recorded_check" in statuses:
+            checking = "checked"
+        elif "no_recorded_check" in statuses:
+            checking = "unchecked"
+        else:
+            raise ValueError(f"Missing homework policy for group {group['group_id']}")
+        classes.append({
+            "label": group["label"],
+            "students": len(rosters[group["group_id"]]),
+            "checking": checking,
+        })
+    classes.sort(key=lambda item: (int(''.join(c for c in item["label"] if c.isdigit()) or 0), item["label"]))
+    year_timeline.append({"year": school_year, "classCount": len(classes), "classes": classes})
+
 groups_by_year = defaultdict(list)
 for group in cohort_groups:
     groups_by_year[group["school_year"]].append(group)
@@ -1251,6 +1280,7 @@ data = {
         "linkedStudents": linked,
         "threeYearStudents": 52,
     },
+    "yearTimeline": year_timeline,
     "series": series,
     "archiveCorrelation": archive_correlation,
     "distributions": {

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Исследование связи выполнения домашних заданий и учебных результатов по физике, 2012–2026.">
   <title>PhysAIS — ДЗ и учебные результаты</title>
-  <link rel="stylesheet" href="styles.css?v=20261028-change-histogram">
+  <link rel="stylesheet" href="styles.css?v=20261028-year-timeline">
 </head>
 <body>
   <header class="topbar">
@@ -35,6 +35,21 @@
         <article><strong id="stat-students">585</strong><span>уникальных учеников</span></article>
         <article><strong id="stat-grades">41 095</strong><span>оценок за работы</span></article>
       </div>
+    </section>
+
+    <section class="timeline-section shell" id="timeline" aria-labelledby="timeline-title">
+      <div class="timeline-panel">
+        <div class="timeline-heading">
+          <h2 id="timeline-title">Проверка ДЗ по годам</h2>
+          <div class="timeline-legend" aria-label="Обозначения проверки домашнего задания">
+            <span><i class="checked"></i>Проверялось</span>
+            <span><i class="unchecked"></i>Не проверялось</span>
+            <span><i class="partial"></i>Часть года</span>
+          </div>
+        </div>
+        <div id="year-timeline" class="timeline-years" aria-label="Учебные годы и проверка ДЗ"></div>
+      </div>
+      <div id="timeline-tooltip" class="timeline-tooltip" role="tooltip" hidden></div>
     </section>
 
     <section class="section shell" id="distribution">
@@ -240,7 +255,7 @@
   </div>
 
   <div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
-  <script src="data.js?v=20261028-change-histogram"></script>
-  <script src="app.js?v=20261028-change-histogram"></script>
+  <script src="data.js?v=20261028-year-timeline"></script>
+  <script src="app.js?v=20261028-year-timeline"></script>
 </body>
 </html>

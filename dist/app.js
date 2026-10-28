@@ -49,6 +49,13 @@
     if (last >= 2 && last <= 4) return 'ученика';
     return 'учеников';
   };
+  const classWord = value => {
+    const lastTwo = value % 100, last = value % 10;
+    if (lastTwo >= 11 && lastTwo <= 14) return 'классов';
+    if (last === 1) return 'класс';
+    if (last >= 2 && last <= 4) return 'класса';
+    return 'классов';
+  };
 
   document.getElementById('stat-years').textContent = num(data.summary.years);
   document.getElementById('stat-groups').textContent = num(data.summary.groups);
@@ -81,6 +88,105 @@
     node.addEventListener('focus', () => showTip({clientX:window.innerWidth/2,clientY:220}, html));
     node.addEventListener('blur', hideTip);
   };
+
+  function renderYearTimeline() {
+    const wrap = document.getElementById('year-timeline');
+    const tip = document.getElementById('timeline-tooltip');
+    const policyLabel = {
+      checked: 'ДЗ проверялось',
+      unchecked: 'ДЗ не проверялось',
+      partial: 'Часть года без проверки',
+    };
+    let activeButton = null;
+    let pinned = false;
+    const hide = () => {
+      tip.hidden = true;
+      activeButton?.setAttribute('aria-expanded', 'false');
+      activeButton = null;
+      pinned = false;
+    };
+    const position = () => {
+      if (!activeButton || tip.hidden) return;
+      const rect = activeButton.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > window.innerHeight) { hide(); return; }
+      const width = tip.offsetWidth;
+      const height = tip.offsetHeight;
+      tip.style.left = `${Math.max(12, Math.min(rect.left + rect.width/2 - width/2, window.innerWidth - width - 12))}px`;
+      const below = rect.bottom + 10;
+      tip.style.top = `${below + height <= window.innerHeight - 10
+        ? below : Math.max(10, rect.top - height - 10)}px`;
+    };
+    const show = (year, button) => {
+      activeButton?.setAttribute('aria-expanded', 'false');
+      activeButton = button;
+      button.setAttribute('aria-expanded', 'true');
+      const heading = document.createElement('strong');
+      heading.className = 'timeline-tooltip-title';
+      heading.textContent = `${year.year.replace('-', '–')} · ${year.classCount} ${classWord(year.classCount)}`;
+      const rows = document.createElement('div');
+      rows.className = 'timeline-tooltip-rows';
+      year.classes.forEach(group => {
+        const row = document.createElement('div');
+        row.className = 'timeline-tooltip-row';
+        const dot = document.createElement('i');
+        dot.className = group.checking;
+        const name = document.createElement('strong');
+        name.textContent = group.label;
+        const count = document.createElement('span');
+        count.textContent = `${group.students} ${studentWord(group.students)}`;
+        const policy = document.createElement('small');
+        policy.textContent = policyLabel[group.checking];
+        row.append(dot, name, count, policy);
+        rows.appendChild(row);
+      });
+      tip.replaceChildren(heading, rows);
+      tip.hidden = false;
+      position();
+    };
+    data.yearTimeline.forEach(year => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'timeline-year';
+      button.setAttribute('aria-controls', 'timeline-tooltip');
+      button.setAttribute('aria-expanded', 'false');
+      button.setAttribute('aria-label', `${year.year.replace('-', '–')}: ${year.classCount} ${classWord(year.classCount)}. Наведите или нажмите для подробностей`);
+      const yearLabel = document.createElement('span');
+      yearLabel.className = 'timeline-year-label';
+      yearLabel.textContent = `${year.year.slice(0,4)}–${year.year.slice(7)}`;
+      const count = document.createElement('strong');
+      count.className = 'timeline-year-count';
+      count.textContent = num(year.classCount);
+      const unit = document.createElement('span');
+      unit.className = 'timeline-year-unit';
+      unit.textContent = classWord(year.classCount);
+      const statusBar = document.createElement('span');
+      statusBar.className = 'timeline-year-status';
+      statusBar.setAttribute('aria-hidden', 'true');
+      year.classes.forEach(group => {
+        const segment = document.createElement('i');
+        segment.className = group.checking;
+        statusBar.appendChild(segment);
+      });
+      button.append(yearLabel, count, unit, statusBar);
+      button.addEventListener('mouseenter', () => { if (!pinned) show(year, button); });
+      button.addEventListener('mouseleave', () => { if (!pinned && activeButton === button) hide(); });
+      button.addEventListener('focus', () => { if (!pinned) show(year, button); });
+      button.addEventListener('blur', () => { if (!pinned && activeButton === button) hide(); });
+      button.addEventListener('click', () => {
+        if (pinned && activeButton === button) hide();
+        else { pinned = true; show(year, button); }
+      });
+      button.addEventListener('keydown', event => {
+        if (event.key === 'Escape') hide();
+      });
+      wrap.appendChild(button);
+    });
+    document.addEventListener('pointerdown', event => {
+      if (pinned && !event.target.closest('.timeline-year')) hide();
+    });
+    window.addEventListener('scroll', position, {passive:true});
+    window.addEventListener('resize', position);
+  }
 
   function renderArchiveDistribution() {
     const wrap = document.getElementById('archive-distribution-chart');
@@ -647,6 +753,7 @@
     document.querySelectorAll('#stopped-adjustment-controls button').forEach(item=>{item.classList.toggle('active',item===button);item.setAttribute('aria-pressed',String(item===button));});
     renderStoppedAnalysis();
   }));
+  renderYearTimeline();
   renderArchiveDistribution();
   renderScatter();
   renderAiImpact();
