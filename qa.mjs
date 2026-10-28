@@ -24,12 +24,14 @@ async function inspect(name, viewport, screenshot) {
   await page.waitForSelector('#ai-parallel-chart .ai-era-card');
   await page.waitForSelector('#stopped-analysis .stopped-change-stack');
   await page.waitForSelector('#experiment-gap-chart .experiment-gap-point');
-  const stoppedOrdinaryReading = await page.locator('#stopped-analysis').getAttribute('aria-label');
-  await page.locator('#stopped-metric-controls').getByRole('button', { name: 'Экзаменационная оценка', exact: true }).click();
-  const stoppedExamReading = await page.locator('#stopped-analysis').getAttribute('aria-label');
-  interaction.stoppedMetricSwitches = stoppedOrdinaryReading.includes('113 учеников') && stoppedExamReading.includes('88 учеников') && stoppedExamReading.includes('−0,07');
-  interaction.stoppedExamTransitions = await page.locator('#stopped-analysis .stopped-transition-card').count();
-  await page.locator('#stopped-metric-controls').getByRole('button', { name: 'Обычные оценки', exact: true }).click();
+  const rawReading = await page.locator('#stopped-analysis').getAttribute('aria-label');
+  await page.locator('#stopped-adjustment-controls').getByRole('button', { name: 'С поправкой', exact: true }).click();
+  const adjustedReading = await page.locator('#stopped-analysis').getAttribute('aria-label');
+  interaction.stoppedAdjustmentWorks = rawReading.includes('изменение +0,26') && rawReading.includes('снижение у 30') &&
+    adjustedReading.includes('изменение +0,36') && adjustedReading.includes('снижение у 22') &&
+    (await page.locator('#stopped-adjustment-note').isVisible());
+  await page.locator('#checking-stopped').screenshot({ path: path.join(root, '..', 'tmp', `physais-stopped-adjusted-${name}.png`), style: '.topbar{visibility:hidden}' });
+  await page.locator('#stopped-adjustment-controls').getByRole('button', { name: 'Без поправки', exact: true }).click();
   const fixedReading = await page.locator('#experiment-gap-chart').getAttribute('aria-label');
   const fixedAxes = await page.locator('#experiment-gap-chart .experiment-axis').allTextContents();
   await page.locator('#experiment-sample-controls').getByRole('button', { name: 'Все писавшие', exact: true }).click();
@@ -146,7 +148,7 @@ const failed = Object.values(results).some(result =>
   result.experimentGapPoints !== 5 || !result.experimentStudents.includes('40 учеников') ||
   result.distributionSegments !== 16 || result.homeworkHighlights !== 1 || !result.homeworkPeriodsMatch || result.inferredHomeworkPeriods !== 2 || result.points < 1 || result.pointGrades < 1 || result.groups !== '21' ||
   result.aiEraCards !== 2 || result.aiGradeControls !== 3 || result.aiCohortGradeControls !== 3 || result.aiCohortCards !== 2 || result.aiParallelCards !== 2 || result.aiParallelGroups !== 1 || result.aiParallelGradeControls !== 2 || result.aiStacks !== 12 || result.aiSegments !== 48 ||
-  !result.stoppedMetricSwitches || result.stoppedExamTransitions !== 2 || !result.stoppedPopulation?.includes('116') || result.stoppedTransitionCards !== 3 || result.stoppedChangeSegments !== 5 ||
+  !result.stoppedAdjustmentWorks || !result.stoppedPopulation?.includes('116') || result.stoppedTransitionCards !== 3 || result.stoppedChangeSegments !== 5 ||
   result.histogramBars !== 12 || !result.modalVisible || !result.modalClosed ||
   result.homeworkStatPresent || result.overflow > 1
 );

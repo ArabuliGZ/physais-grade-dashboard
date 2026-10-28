@@ -1075,15 +1075,27 @@ for row in con.execute(
 # was recorded in the first year and not checked in the second. The browser
 # receives only aggregate counts; student identifiers never leave this script.
 def historical_pairs(from_year, to_year, from_status, to_status, kind):
-    required = 5 if kind == "dated_marks" else 1
+    required = 5 if kind in ("dated_marks", "combined") else 1
     result = []
     for (student_id, year, grade, status), kinds in historical_students.items():
         if year != from_year or status != from_status:
             continue
-        before = kinds.get(kind, [])
-        after = historical_students.get(
+        after_kinds = historical_students.get(
             (student_id, to_year, grade + 1, to_status), {}
-        ).get(kind, [])
+        )
+        if kind == "combined":
+            # Include exam marks only when they are recorded in both years,
+            # avoiding an artificial change from a one-sided exam mark.
+            paired_exams = bool(kinds.get("exam_grade") and after_kinds.get("exam_grade"))
+            before = kinds.get("dated_marks", [])
+            after = after_kinds.get("dated_marks", [])
+            if len(before) < required or len(after) < required:
+                continue
+            before = before + (kinds["exam_grade"] if paired_exams else [])
+            after = after + (after_kinds["exam_grade"] if paired_exams else [])
+        else:
+            before = kinds.get(kind, [])
+            after = after_kinds.get(kind, [])
         if len(before) < required or len(after) < required:
             continue
         before_mean = statistics.mean(before)
@@ -1120,6 +1132,16 @@ def stopped_check_metric(kind, label):
         )
         if row["grade"] in grades
     ]
+    control_by_grade = {
+        grade: mean(row["delta"] for row in control_pairs if row["grade"] == grade)
+        for grade in grades
+    }
+    if any(value is None for value in control_by_grade.values()):
+        raise ValueError("Missing checked-to-checked reference for a grade transition")
+    adjusted_pairs = [
+        {**row, "delta": row["delta"] - control_by_grade[row["grade"]]}
+        for row in pairs
+    ]
     transitions = []
     for grade in grades:
         selected = [row for row in pairs if row["grade"] == grade]
@@ -1132,8 +1154,9 @@ def stopped_check_metric(kind, label):
             "after": round(mean(row["after"] for row in selected), 3),
             "delta": round(mean(row["delta"] for row in selected), 3),
             "controlN": len(selected_control),
-            "controlDelta": round(mean(row["delta"] for row in selected_control), 3)
-            if selected_control else None,
+            "controlDelta": round(control_by_grade[grade], 3),
+            "adjustedAfter": round(mean(row["after"] for row in selected) - control_by_grade[grade], 3),
+            "adjustedDelta": round(mean(row["delta"] for row in selected) - control_by_grade[grade], 3),
         })
     return {
         "id": kind,
@@ -1148,8 +1171,15 @@ def stopped_check_metric(kind, label):
         "changes": change_counts(pairs),
         "control": {
             "n": len(control_pairs),
-            "delta": round(mean(row["delta"] for row in control_pairs), 3),
+            "delta": round(mean(control_by_grade[row["grade"]] for row in pairs), 3),
         } if control_pairs else None,
+        "adjusted": {
+            "after": round(mean(row["before"] for row in pairs) + mean(row["delta"] for row in adjusted_pairs), 3),
+            "delta": round(mean(row["delta"] for row in adjusted_pairs), 3),
+            "worseAny": sum(row["delta"] < 0 for row in adjusted_pairs),
+            "worseHalf": sum(row["delta"] <= -0.5 for row in adjusted_pairs),
+            "changes": change_counts(adjusted_pairs),
+        },
         "transitions": transitions,
     }
 
@@ -1177,8 +1207,7 @@ stopped_check_analysis = {
     "to": "2015-2016",
     "studentsWithBothPolicies": stopped_policy_population,
     "metrics": [
-        stopped_check_metric("dated_marks", "Обычные оценки"),
-        stopped_check_metric("exam_grade", "Экзаменационная оценка"),
+        stopped_check_metric("combined", "Оценки за работы"),
     ],
 }
 

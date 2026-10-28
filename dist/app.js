@@ -20,7 +20,7 @@
     paper: '#ffffff',
     grades: { '2':'#c95d5d', '3':'#e3c65d', '4':'#a8bd62', '5':'#4f8b61' }
   };
-  const state = { grade: 0, distributionGrade: 0, aiGrade: 0, aiCohortGrade: 0, aiParallelGrade: 8, stoppedMetric: 'dated_marks', experimentMetric: 'kr', experimentSample: 'balanced' };
+  const state = { grade: 0, distributionGrade: 0, aiGrade: 0, aiCohortGrade: 0, aiParallelGrade: 8, stoppedMode: 'raw', experimentMetric: 'kr', experimentSample: 'balanced' };
   const allScatterPoints = data.archiveCorrelation.find(item => item.grade === 0)?.points || [];
   const scatterXMax = Math.max(100, Math.ceil(Math.max(...allScatterPoints.map(point => point.x), 100) / 25) * 25);
   const tooltip = document.getElementById('tooltip');
@@ -343,8 +343,11 @@
 
   function renderStoppedAnalysis() {
     const analysis = data.historical.stoppedCheck;
-    const metric = analysis.metrics.find(item => item.id === state.stoppedMetric);
+    const metric = analysis.metrics[0];
+    const adjusted = state.stoppedMode === 'adjusted';
+    const view = adjusted ? {...metric, ...metric.adjusted} : metric;
     const wrap = document.getElementById('stopped-analysis');
+    document.getElementById('stopped-adjustment-note').hidden = !adjusted;
     document.getElementById('stopped-policy-population').textContent =
       `${num(analysis.studentsWithBothPolicies)} ${studentWord(analysis.studentsWithBothPolicies)} в двух режимах`;
     wrap.innerHTML = '';
@@ -368,11 +371,11 @@
     meanComparison.append(
       scoreCard('ДЗ проверялось', analysis.from, metric.before, true),
       Object.assign(document.createElement('span'), {className:'stopped-arrow', textContent:'→'}),
-      scoreCard('ДЗ не проверялось', analysis.to, metric.after, false),
+      scoreCard(adjusted ? 'Без проверки · с поправкой' : 'ДЗ не проверялось', analysis.to, view.after, false),
     );
     const meanDelta = document.createElement('div');
-    meanDelta.className = `stopped-mean-delta ${metric.delta < 0 ? 'negative' : 'positive'}`;
-    meanDelta.innerHTML = `<span>изменение средней</span><strong>${signed(metric.delta,2)}</strong>`;
+    meanDelta.className = `stopped-mean-delta ${view.delta < 0 ? 'negative' : 'positive'}`;
+    meanDelta.innerHTML = `<span>изменение средней${adjusted ? ' с поправкой' : ''}</span><strong>${signed(view.delta,2)}</strong>`;
     meanPanel.append(meanTitle, meanComparison, meanDelta);
     if (metric.control) {
       const control = document.createElement('div');
@@ -388,7 +391,7 @@
     changeTitle.innerHTML = '<h3>Изменения у учеников</h3><span>после прекращения проверки</span>';
     const stack = document.createElement('div');
     stack.className = 'stopped-change-stack';
-    metric.changes.forEach(change => {
+    view.changes.forEach(change => {
       if (!change.count) return;
       const share = change.count / metric.n * 100;
       const segment = document.createElement('span');
@@ -400,14 +403,14 @@
     });
     const legend = document.createElement('div');
     legend.className = 'stopped-change-legend';
-    metric.changes.filter(change => change.count).forEach(change => {
+    view.changes.filter(change => change.count).forEach(change => {
       const item = document.createElement('span');
       item.innerHTML = `<i class="${change.key}"></i>${change.label}<strong>${num(change.count)}</strong>`;
       legend.appendChild(item);
     });
     const risk = document.createElement('div');
     risk.className = 'stopped-risk-line';
-    risk.innerHTML = `<span><strong>${num(metric.worseAny)} из ${num(metric.n)}</strong> снизили результат</span><span><strong>${num(metric.worseHalf)} из ${num(metric.n)}</strong> снизили на 0,5 и более</span>`;
+    risk.innerHTML = `<span><strong>${num(view.worseAny)} из ${num(metric.n)}</strong> снизили результат</span><span><strong>${num(view.worseHalf)} из ${num(metric.n)}</strong> снизили на 0,5 и более</span>`;
     changePanel.append(changeTitle, stack, legend, risk);
     grid.append(meanPanel, changePanel);
 
@@ -422,12 +425,14 @@
       const card = document.createElement('article');
       card.className = 'stopped-transition-card';
       const control = row.controlDelta == null ? '' : `<small>При продолжении проверки годом ранее: <strong>${signed(row.controlDelta,2)}</strong> · ${num(row.controlN)} ${studentWord(row.controlN)}</small>`;
-      card.innerHTML = `<div><strong>${row.fromGrade} → ${row.toGrade} класс</strong><span>${num(row.n)} ${studentWord(row.n)}</span></div><p><span>${fmt(row.before,2)}</span><b>→</b><span>${fmt(row.after,2)}</span></p><em class="${row.delta < 0 ? 'negative' : 'positive'}">${signed(row.delta,2)}</em>${control}`;
+      const after = adjusted ? row.adjustedAfter : row.after;
+      const delta = adjusted ? row.adjustedDelta : row.delta;
+      card.innerHTML = `<div><strong>${row.fromGrade} → ${row.toGrade} класс</strong><span>${num(row.n)} ${studentWord(row.n)}</span></div><p><span>${fmt(row.before,2)}</span><b>→</b><span>${fmt(after,2)}</span></p><em class="${delta < 0 ? 'negative' : 'positive'}">${signed(delta,2)}</em>${control}`;
       transitionGrid.appendChild(card);
     });
     transitions.append(transitionsTitle, transitionGrid);
     wrap.append(grid, transitions);
-    wrap.setAttribute('aria-label', `${metric.label}: ${num(metric.n)} учеников; средняя оценка ${fmt(metric.before,2)} до и ${fmt(metric.after,2)} после; изменение ${signed(metric.delta,2)}; снижение у ${num(metric.worseAny)}, снижение не менее чем на 0,5 у ${num(metric.worseHalf)}.`);
+    wrap.setAttribute('aria-label', `${metric.label}${adjusted ? ' с поправкой на переход между классами' : ' без поправки'}: ${num(metric.n)} учеников; средняя оценка ${fmt(metric.before,2)} до и ${fmt(view.after,2)} после; изменение ${signed(view.delta,2)}; снижение у ${num(view.worseAny)}, снижение не менее чем на 0,5 у ${num(view.worseHalf)}.`);
   }
 
   const experimentColors = { '9Б': '#315a8c', '9Д': '#79569a', neutral: '#374151' };
@@ -547,9 +552,9 @@
     document.querySelectorAll('#ai-parallel-grade-controls button').forEach(item=>item.classList.toggle('active',item===button));
     renderAiImpact();
   }));
-  document.querySelectorAll('#stopped-metric-controls button').forEach(button => button.addEventListener('click',()=>{
-    state.stoppedMetric=button.dataset.metric;
-    document.querySelectorAll('#stopped-metric-controls button').forEach(item=>{item.classList.toggle('active',item===button);item.setAttribute('aria-pressed',String(item===button));});
+  document.querySelectorAll('#stopped-adjustment-controls button').forEach(button => button.addEventListener('click',()=>{
+    state.stoppedMode=button.dataset.mode;
+    document.querySelectorAll('#stopped-adjustment-controls button').forEach(item=>{item.classList.toggle('active',item===button);item.setAttribute('aria-pressed',String(item===button));});
     renderStoppedAnalysis();
   }));
   renderArchiveDistribution();

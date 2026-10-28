@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Исследование связи выполнения домашних заданий и учебных результатов по физике, 2012–2026.">
   <title>PhysAIS — ДЗ и учебные результаты</title>
-  <link rel="stylesheet" href="styles.css?v=20261028-stopped">
+  <link rel="stylesheet" href="styles.css?v=20261028-adjusted">
 </head>
 <body>
   <header class="topbar">
@@ -117,10 +117,11 @@
           <span id="stopped-policy-population"></span>
         </div>
         <div class="control-row stopped-control-row">
-          <div class="segmented" id="stopped-metric-controls" role="group" aria-label="Показатель до и после отмены проверки ДЗ">
-            <button type="button" class="active" data-metric="dated_marks" aria-pressed="true">Обычные оценки</button>
-            <button type="button" data-metric="exam_grade" aria-pressed="false">Экзаменационная оценка</button>
+          <div class="segmented" id="stopped-adjustment-controls" role="group" aria-label="Поправка на переход между классами">
+            <button type="button" class="active" data-mode="raw" aria-pressed="true">Без поправки</button>
+            <button type="button" data-mode="adjusted" aria-pressed="false">С поправкой</button>
           </div>
+          <span id="stopped-adjustment-note" hidden>Учтено обычное изменение оценки при переходе в следующий класс годом ранее.</span>
         </div>
         <div id="stopped-analysis" role="img" aria-label="Изменение оценок одних и тех же учеников после прекращения проверки домашних заданий"></div>
       </article>
@@ -239,7 +240,7 @@
   </div>
 
   <div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
-  <script src="data.js?v=20261028-stopped"></script>
-  <script src="app.js?v=20261028-stopped"></script>
+  <script src="data.js?v=20261028-adjusted"></script>
+  <script src="app.js?v=20261028-adjusted"></script>
 </body>
 </html>
