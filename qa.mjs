@@ -25,10 +25,32 @@ async function inspect(name, viewport, screenshot) {
   await page.waitForSelector('#stopped-analysis .stopped-change-stack');
   await page.waitForSelector('#experiment-gap-chart .experiment-gap-point');
   const rawReading = await page.locator('#stopped-analysis').getAttribute('aria-label');
+  const changeStack = page.locator('#stopped-analysis .stopped-change-stack');
+  const changeHistogram = page.locator('#stopped-change-histogram');
+  interaction.histogramInitiallyHidden = !(await changeHistogram.isVisible());
+  await changeStack.hover();
+  interaction.histogramOpensOnHover = await changeHistogram.isVisible();
+  const rawHistogramAxis = await page.locator('#stopped-change-histogram .stopped-histogram-tick').allTextContents();
+  await changeHistogram.screenshot({ path: path.join(root, '..', 'tmp', `physais-change-histogram-${name}.png`) });
+  await changeStack.click();
+  interaction.histogramOpensOnClick = await changeHistogram.isVisible() &&
+    (await changeStack.getAttribute('aria-expanded')) === 'true';
+  await changeStack.click();
+  interaction.histogramClosesOnClick = !(await changeHistogram.isVisible());
   await page.locator('#stopped-adjustment-controls').getByRole('button', { name: 'С поправкой', exact: true }).click();
   const adjustedReading = await page.locator('#stopped-analysis').getAttribute('aria-label');
-  interaction.stoppedAdjustmentWorks = rawReading.includes('изменение +0,26') && rawReading.includes('снижение у 30') &&
-    adjustedReading.includes('изменение +0,36') && adjustedReading.includes('снижение у 22') &&
+  await page.locator('#stopped-analysis .stopped-change-stack').hover();
+  const adjustedHistogramAxis = await page.locator('#stopped-change-histogram .stopped-histogram-tick').allTextContents();
+  interaction.histogramScaleStable = JSON.stringify(rawHistogramAxis) === JSON.stringify(adjustedHistogramAxis);
+  interaction.histogramCountsMatch = await page.evaluate(() => {
+    const metric = window.DASHBOARD_DATA.historical.stoppedCheck.metrics[0];
+    return metric.changes.reduce((sum, change) => sum + change.count, 0) === metric.n &&
+      metric.adjusted.changes.reduce((sum, change) => sum + change.count, 0) === metric.n &&
+      metric.histogram.bins.reduce((sum, bin) => sum + bin.count, 0) === metric.n &&
+      metric.adjusted.histogram.bins.reduce((sum, bin) => sum + bin.count, 0) === metric.n;
+  });
+  interaction.stoppedAdjustmentWorks = rawReading.includes('изменение +0,26') && rawReading.includes('снижение более чем на 0,1 у 21') &&
+    adjustedReading.includes('изменение +0,36') && adjustedReading.includes('снижение более чем на 0,1 у 16') &&
     (await page.locator('#stopped-adjustment-note').isVisible());
   await page.locator('#checking-stopped').screenshot({ path: path.join(root, '..', 'tmp', `physais-stopped-adjusted-${name}.png`), style: '.topbar{visibility:hidden}' });
   await page.locator('#stopped-adjustment-controls').getByRole('button', { name: 'Без поправки', exact: true }).click();
@@ -148,7 +170,9 @@ const failed = Object.values(results).some(result =>
   result.experimentGapPoints !== 5 || !result.experimentStudents.includes('40 учеников') ||
   result.distributionSegments !== 16 || result.homeworkHighlights !== 1 || !result.homeworkPeriodsMatch || result.inferredHomeworkPeriods !== 2 || result.points < 1 || result.pointGrades < 1 || result.groups !== '21' ||
   result.aiEraCards !== 2 || result.aiGradeControls !== 3 || result.aiCohortGradeControls !== 3 || result.aiCohortCards !== 2 || result.aiParallelCards !== 2 || result.aiParallelGroups !== 1 || result.aiParallelGradeControls !== 2 || result.aiStacks !== 12 || result.aiSegments !== 48 ||
-  !result.stoppedAdjustmentWorks || !result.stoppedPopulation?.includes('116') || result.stoppedTransitionCards !== 3 || result.stoppedChangeSegments !== 5 ||
+  !result.stoppedAdjustmentWorks || !result.histogramInitiallyHidden || !result.histogramOpensOnHover ||
+  !result.histogramOpensOnClick || !result.histogramClosesOnClick || !result.histogramScaleStable || !result.histogramCountsMatch ||
+  !result.stoppedPopulation?.includes('116') || result.stoppedTransitionCards !== 3 || result.stoppedChangeSegments !== 5 ||
   result.histogramBars !== 12 || !result.modalVisible || !result.modalClosed ||
   result.homeworkStatPresent || result.overflow > 1
 );

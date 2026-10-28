@@ -1112,13 +1112,38 @@ def historical_pairs(from_year, to_year, from_status, to_status, kind):
 def change_counts(pairs):
     deltas = [row["delta"] for row in pairs]
     epsilon = 1e-9
+    unchanged = 0.1
     return [
         {"key": "downLarge", "label": "Снижение ≥ 0,5", "count": sum(value <= -0.5 for value in deltas)},
-        {"key": "downSmall", "label": "Снижение < 0,5", "count": sum(-0.5 < value < -epsilon for value in deltas)},
-        {"key": "same", "label": "Без изменения", "count": sum(abs(value) <= epsilon for value in deltas)},
-        {"key": "upSmall", "label": "Рост < 0,5", "count": sum(epsilon < value < 0.5 for value in deltas)},
+        {"key": "downSmall", "label": "Снижение 0,1–0,5", "count": sum(-0.5 < value < -unchanged - epsilon for value in deltas)},
+        {"key": "same", "label": "Почти без изменений (±0,1)", "count": sum(abs(value) <= unchanged + epsilon for value in deltas)},
+        {"key": "upSmall", "label": "Рост 0,1–0,5", "count": sum(unchanged + epsilon < value < 0.5 for value in deltas)},
         {"key": "upLarge", "label": "Рост ≥ 0,5", "count": sum(value >= 0.5 for value in deltas)},
     ]
+
+
+def change_histograms(pairs, adjusted_pairs):
+    # 0.2-mark bins share a fixed scale in both modes; the central bin spans
+    # -0.1..+0.1, matching the 'almost unchanged' category.
+    def index(value):
+        if abs(value) <= 0.1 + 1e-9:
+            return 0
+        return math.floor((value + 0.1) / 0.2)
+
+    raw = [index(row["delta"]) for row in pairs]
+    adjusted = [index(row["delta"]) for row in adjusted_pairs]
+    indices = list(range(min(-5, *raw, *adjusted), max(5, *raw, *adjusted) + 1))
+
+    def bins(values):
+        counts = defaultdict(int)
+        for value in values:
+            counts[value] += 1
+        return [{"center": round(i * 0.2, 1), "count": counts[i]} for i in indices]
+
+    raw_bins, adjusted_bins = bins(raw), bins(adjusted)
+    return raw_bins, adjusted_bins, max(
+        bin["count"] for bin in raw_bins + adjusted_bins
+    )
 
 
 def stopped_check_metric(kind, label):
@@ -1142,6 +1167,7 @@ def stopped_check_metric(kind, label):
         {**row, "delta": row["delta"] - control_by_grade[row["grade"]]}
         for row in pairs
     ]
+    raw_bins, adjusted_bins, histogram_max = change_histograms(pairs, adjusted_pairs)
     transitions = []
     for grade in grades:
         selected = [row for row in pairs if row["grade"] == grade]
@@ -1165,10 +1191,11 @@ def stopped_check_metric(kind, label):
         "before": round(mean(row["before"] for row in pairs), 3),
         "after": round(mean(row["after"] for row in pairs), 3),
         "delta": round(mean(row["delta"] for row in pairs), 3),
-        "worseAny": sum(row["delta"] < 0 for row in pairs),
+        "worseAny": sum(row["delta"] < -0.1 - 1e-9 for row in pairs),
         "worseHalf": sum(row["delta"] <= -0.5 for row in pairs),
         "betterHalf": sum(row["delta"] >= 0.5 for row in pairs),
         "changes": change_counts(pairs),
+        "histogram": {"bins": raw_bins, "maxCount": histogram_max},
         "control": {
             "n": len(control_pairs),
             "delta": round(mean(control_by_grade[row["grade"]] for row in pairs), 3),
@@ -1176,9 +1203,10 @@ def stopped_check_metric(kind, label):
         "adjusted": {
             "after": round(mean(row["before"] for row in pairs) + mean(row["delta"] for row in adjusted_pairs), 3),
             "delta": round(mean(row["delta"] for row in adjusted_pairs), 3),
-            "worseAny": sum(row["delta"] < 0 for row in adjusted_pairs),
+            "worseAny": sum(row["delta"] < -0.1 - 1e-9 for row in adjusted_pairs),
             "worseHalf": sum(row["delta"] <= -0.5 for row in adjusted_pairs),
             "changes": change_counts(adjusted_pairs),
+            "histogram": {"bins": adjusted_bins, "maxCount": histogram_max},
         },
         "transitions": transitions,
     }

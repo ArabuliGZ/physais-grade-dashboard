@@ -341,7 +341,11 @@
 
   const signed = (value, digits=2) => `${value > 0 ? '+' : ''}${fmt(value, digits)}`;
 
+  let stoppedRenderAbort;
   function renderStoppedAnalysis() {
+    hideTip();
+    stoppedRenderAbort?.abort();
+    stoppedRenderAbort = new AbortController();
     const analysis = data.historical.stoppedCheck;
     const metric = analysis.metrics[0];
     const adjusted = state.stoppedMode === 'adjusted';
@@ -391,6 +395,10 @@
     changeTitle.innerHTML = '<h3>Изменения у учеников</h3><span>после прекращения проверки</span>';
     const stack = document.createElement('div');
     stack.className = 'stopped-change-stack';
+    stack.setAttribute('role', 'button');
+    stack.setAttribute('tabindex', '0');
+    stack.setAttribute('aria-controls', 'stopped-change-histogram');
+    stack.setAttribute('aria-label', 'Изменения у учеников. Наведите или нажмите, чтобы увидеть гистограмму');
     view.changes.forEach(change => {
       if (!change.count) return;
       const share = change.count / metric.n * 100;
@@ -398,9 +406,91 @@
       segment.className = `stopped-change-segment ${change.key}`;
       segment.style.width = `${share}%`;
       if (share >= 8) segment.textContent = num(change.count);
-      interactive(segment, `<strong>${change.label}</strong><br>${num(change.count)} из ${num(metric.n)} · ${fmt(share,1)}%`);
       stack.appendChild(segment);
     });
+    const changeVisual = document.createElement('div');
+    changeVisual.className = 'stopped-change-visual';
+    const histogram = document.createElement('div');
+    histogram.id = 'stopped-change-histogram';
+    histogram.className = 'stopped-histogram-popover';
+    histogram.hidden = true;
+    histogram.innerHTML = '<div class="stopped-histogram-heading"><strong>Изменение оценки у каждого ученика</strong><span>Шаг 0,2 балла</span></div>';
+    const histogramScroll = document.createElement('div');
+    histogramScroll.className = 'stopped-histogram-scroll';
+    const bins = view.histogram.bins;
+    const maxCount = Math.max(1, view.histogram.maxCount);
+    const barWidth = window.matchMedia('(max-width:620px)').matches ? 19 : 28;
+    const chartLeft = 35;
+    const chartRight = 13;
+    const chartTop = 15;
+    const chartBottom = 160;
+    const chartWidth = chartLeft + bins.length * barWidth + chartRight;
+    const chart = svgEl('svg', {
+      viewBox:`0 0 ${chartWidth} 195`,
+      role:'img',
+      'aria-label':`Распределение изменений оценки у ${num(metric.n)} учеников, шаг 0,2 балла`,
+    });
+    chart.style.minWidth = `${chartWidth}px`;
+    chart.appendChild(svgEl('line', {x1:chartLeft,y1:chartBottom,x2:chartWidth-chartRight,y2:chartBottom,class:'stopped-histogram-baseline'}));
+    [0, Math.ceil(maxCount / 2), maxCount].filter((value,index,all) => all.indexOf(value) === index).forEach(value => {
+      const y = chartBottom - value / maxCount * (chartBottom - chartTop);
+      chart.appendChild(svgEl('line', {x1:chartLeft,y1:y,x2:chartWidth-chartRight,y2:y,class:'stopped-histogram-grid'}));
+      addText(chart, num(value), chartLeft-8, y+4, 'stopped-histogram-tick', 'end');
+    });
+    bins.forEach((bin,index) => {
+      const x = chartLeft + index * barWidth + 3;
+      const height = bin.count / maxCount * (chartBottom - chartTop);
+      const color = bin.center < 0 ? (bin.center <= -0.5 ? 'downLarge' : 'downSmall') :
+        bin.center > 0 ? (bin.center >= 0.5 ? 'upLarge' : 'upSmall') : 'same';
+      if (bin.count) {
+        const rect = svgEl('rect', {x,y:chartBottom-height,width:barWidth-6,height,
+          class:`stopped-histogram-bar ${color}`});
+        const start = bin.center - 0.1;
+        const end = bin.center + 0.1;
+        interactive(rect, `<strong>${fmt(start,1)}…${fmt(end,1)} балла</strong><br>${num(bin.count)} ${studentWord(bin.count)}`);
+        chart.appendChild(rect);
+      }
+      if (Math.abs(bin.center % 1) < 1e-8) {
+        addText(chart, signed(bin.center,0), x + (barWidth-6)/2, chartBottom+20, 'stopped-histogram-tick');
+      }
+    });
+    histogramScroll.appendChild(chart);
+    histogram.appendChild(histogramScroll);
+    changeVisual.append(stack,histogram);
+    let histogramPinned = false;
+    const setHistogramOpen = open => {
+      histogram.hidden = !open;
+      stack.setAttribute('aria-expanded', String(open));
+      changePanel.classList.toggle('histogram-open', open);
+    };
+    setHistogramOpen(false);
+    changeVisual.addEventListener('mouseenter', () => setHistogramOpen(true));
+    changeVisual.addEventListener('mouseleave', () => { if (!histogramPinned) setHistogramOpen(false); });
+    changeVisual.addEventListener('focusin', () => setHistogramOpen(true));
+    changeVisual.addEventListener('focusout', event => {
+      if (!histogramPinned && !changeVisual.contains(event.relatedTarget)) setHistogramOpen(false);
+    });
+    stack.addEventListener('click', () => {
+      histogramPinned = !histogramPinned;
+      setHistogramOpen(histogramPinned);
+    });
+    stack.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        histogramPinned = !histogramPinned;
+        setHistogramOpen(histogramPinned);
+      }
+      if (event.key === 'Escape') {
+        histogramPinned = false;
+        setHistogramOpen(false);
+      }
+    });
+    document.addEventListener('pointerdown', event => {
+      if (histogramPinned && !changeVisual.contains(event.target)) {
+        histogramPinned = false;
+        setHistogramOpen(false);
+      }
+    }, {signal: stoppedRenderAbort.signal});
     const legend = document.createElement('div');
     legend.className = 'stopped-change-legend';
     view.changes.filter(change => change.count).forEach(change => {
@@ -410,8 +500,8 @@
     });
     const risk = document.createElement('div');
     risk.className = 'stopped-risk-line';
-    risk.innerHTML = `<span><strong>${num(view.worseAny)} из ${num(metric.n)}</strong> снизили результат</span><span><strong>${num(view.worseHalf)} из ${num(metric.n)}</strong> снизили на 0,5 и более</span>`;
-    changePanel.append(changeTitle, stack, legend, risk);
+    risk.innerHTML = `<span><strong>${num(view.worseAny)} из ${num(metric.n)}</strong> снизили результат более чем на 0,1</span><span><strong>${num(view.worseHalf)} из ${num(metric.n)}</strong> снизили на 0,5 и более</span>`;
+    changePanel.append(changeTitle, changeVisual, legend, risk);
     grid.append(meanPanel, changePanel);
 
     const transitions = document.createElement('section');
@@ -432,7 +522,7 @@
     });
     transitions.append(transitionsTitle, transitionGrid);
     wrap.append(grid, transitions);
-    wrap.setAttribute('aria-label', `${metric.label}${adjusted ? ' с поправкой на переход между классами' : ' без поправки'}: ${num(metric.n)} учеников; средняя оценка ${fmt(metric.before,2)} до и ${fmt(view.after,2)} после; изменение ${signed(view.delta,2)}; снижение у ${num(view.worseAny)}, снижение не менее чем на 0,5 у ${num(view.worseHalf)}.`);
+    wrap.setAttribute('aria-label', `${metric.label}${adjusted ? ' с поправкой на переход между классами' : ' без поправки'}: ${num(metric.n)} учеников; средняя оценка ${fmt(metric.before,2)} до и ${fmt(view.after,2)} после; изменение ${signed(view.delta,2)}; снижение более чем на 0,1 у ${num(view.worseAny)}, снижение не менее чем на 0,5 у ${num(view.worseHalf)}.`);
   }
 
   const experimentColors = { '9Б': '#315a8c', '9Д': '#79569a', neutral: '#374151' };
