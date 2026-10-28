@@ -18,6 +18,7 @@
       <a href="#distribution">Распределение оценок</a>
       <a href="#correlation">ДЗ и оценки</a>
       <a href="#ai-impact">Влияние ИИ</a>
+      <a href="#checking-stopped">Отмена проверки</a>
       <a href="#homework-experiment">Эксперимент с ДЗ</a>
     </nav>
   </header>
@@ -160,9 +161,30 @@
       </article>
     </section>
 
-    <section class="section shell" id="homework-experiment">
+    <section class="section shell" id="checking-stopped">
       <div class="section-heading">
         <span class="section-number">04</span>
+        <div><h2>Проверяли → перестали проверять</h2></div>
+      </div>
+
+      <article class="research-panel stopped-panel">
+        <div class="panel-header">
+          <strong>Одни и те же ученики · 2014–2015 → 2015–2016</strong>
+          <span id="stopped-policy-population"></span>
+        </div>
+        <div class="control-row stopped-control-row">
+          <div class="segmented" id="stopped-metric-controls" role="group" aria-label="Показатель до и после отмены проверки ДЗ">
+            <button type="button" class="active" data-metric="dated_marks" aria-pressed="true">Обычные оценки</button>
+            <button type="button" data-metric="exam_grade" aria-pressed="false">Экзаменационная оценка</button>
+          </div>
+        </div>
+        <div id="stopped-analysis" role="img" aria-label="Изменение оценок одних и тех же учеников после прекращения проверки домашних заданий"></div>
+      </article>
+    </section>
+
+    <section class="section shell" id="homework-experiment">
+      <div class="section-heading">
+        <span class="section-number">05</span>
         <div><h2>Проверка ДЗ: эксперимент</h2></div>
       </div>
       <article class="research-panel experiment-panel">

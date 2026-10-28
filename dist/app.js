@@ -20,7 +20,7 @@
     paper: '#ffffff',
     grades: { '2':'#c95d5d', '3':'#e3c65d', '4':'#a8bd62', '5':'#4f8b61' }
   };
-  const state = { grade: 0, distributionGrade: 0, aiGrade: 0, aiCohortGrade: 0, aiParallelGrade: 8, experimentMetric: 'kr', experimentSample: 'balanced' };
+  const state = { grade: 0, distributionGrade: 0, aiGrade: 0, aiCohortGrade: 0, aiParallelGrade: 8, stoppedMetric: 'dated_marks', experimentMetric: 'kr', experimentSample: 'balanced' };
   const allScatterPoints = data.archiveCorrelation.find(item => item.grade === 0)?.points || [];
   const scatterXMax = Math.max(100, Math.ceil(Math.max(...allScatterPoints.map(point => point.x), 100) / 25) * 25);
   const tooltip = document.getElementById('tooltip');
@@ -340,6 +340,96 @@
   }
 
   const signed = (value, digits=2) => `${value > 0 ? '+' : ''}${fmt(value, digits)}`;
+
+  function renderStoppedAnalysis() {
+    const analysis = data.historical.stoppedCheck;
+    const metric = analysis.metrics.find(item => item.id === state.stoppedMetric);
+    const wrap = document.getElementById('stopped-analysis');
+    document.getElementById('stopped-policy-population').textContent =
+      `${num(analysis.studentsWithBothPolicies)} ${studentWord(analysis.studentsWithBothPolicies)} в двух режимах`;
+    wrap.innerHTML = '';
+
+    const grid = document.createElement('div');
+    grid.className = 'stopped-summary-grid';
+
+    const meanPanel = document.createElement('section');
+    meanPanel.className = 'stopped-summary-card';
+    const meanTitle = document.createElement('div');
+    meanTitle.className = 'stopped-card-title';
+    meanTitle.innerHTML = `<h3>Средний результат</h3><span>${num(metric.n)} ${studentWord(metric.n)}</span>`;
+    const meanComparison = document.createElement('div');
+    meanComparison.className = 'stopped-mean-comparison';
+    const scoreCard = (label, year, value, checked) => {
+      const card = document.createElement('div');
+      card.className = `stopped-score-card ${checked ? 'checked' : 'unchecked'}`;
+      card.innerHTML = `<span>${label}</span><strong>${fmt(value,2)}</strong><small>${year.replace('-', '–')}</small><div class="stopped-score-track"><i style="width:${Math.max(0,(value-2)/3*100)}%"></i></div>`;
+      return card;
+    };
+    meanComparison.append(
+      scoreCard('ДЗ проверялось', analysis.from, metric.before, true),
+      Object.assign(document.createElement('span'), {className:'stopped-arrow', textContent:'→'}),
+      scoreCard('ДЗ не проверялось', analysis.to, metric.after, false),
+    );
+    const meanDelta = document.createElement('div');
+    meanDelta.className = `stopped-mean-delta ${metric.delta < 0 ? 'negative' : 'positive'}`;
+    meanDelta.innerHTML = `<span>изменение средней</span><strong>${signed(metric.delta,2)}</strong>`;
+    meanPanel.append(meanTitle, meanComparison, meanDelta);
+    if (metric.control) {
+      const control = document.createElement('div');
+      control.className = 'stopped-control-comparison';
+      control.innerHTML = `<span>Те же переходы годом ранее, когда ДЗ продолжали проверять</span><strong>${signed(metric.control.delta,2)}</strong><small>${num(metric.control.n)} ${studentWord(metric.control.n)}</small>`;
+      meanPanel.appendChild(control);
+    }
+
+    const changePanel = document.createElement('section');
+    changePanel.className = 'stopped-summary-card';
+    const changeTitle = document.createElement('div');
+    changeTitle.className = 'stopped-card-title';
+    changeTitle.innerHTML = '<h3>Изменения у учеников</h3><span>после прекращения проверки</span>';
+    const stack = document.createElement('div');
+    stack.className = 'stopped-change-stack';
+    metric.changes.forEach(change => {
+      if (!change.count) return;
+      const share = change.count / metric.n * 100;
+      const segment = document.createElement('span');
+      segment.className = `stopped-change-segment ${change.key}`;
+      segment.style.width = `${share}%`;
+      if (share >= 8) segment.textContent = num(change.count);
+      interactive(segment, `<strong>${change.label}</strong><br>${num(change.count)} из ${num(metric.n)} · ${fmt(share,1)}%`);
+      stack.appendChild(segment);
+    });
+    const legend = document.createElement('div');
+    legend.className = 'stopped-change-legend';
+    metric.changes.filter(change => change.count).forEach(change => {
+      const item = document.createElement('span');
+      item.innerHTML = `<i class="${change.key}"></i>${change.label}<strong>${num(change.count)}</strong>`;
+      legend.appendChild(item);
+    });
+    const risk = document.createElement('div');
+    risk.className = 'stopped-risk-line';
+    risk.innerHTML = `<span><strong>${num(metric.worseAny)} из ${num(metric.n)}</strong> снизили результат</span><span><strong>${num(metric.worseHalf)} из ${num(metric.n)}</strong> снизили на 0,5 и более</span>`;
+    changePanel.append(changeTitle, stack, legend, risk);
+    grid.append(meanPanel, changePanel);
+
+    const transitions = document.createElement('section');
+    transitions.className = 'stopped-transitions';
+    const transitionsTitle = document.createElement('div');
+    transitionsTitle.className = 'stopped-card-title';
+    transitionsTitle.innerHTML = '<h3>По переходам между классами</h3>';
+    const transitionGrid = document.createElement('div');
+    transitionGrid.className = 'stopped-transition-grid';
+    metric.transitions.forEach(row => {
+      const card = document.createElement('article');
+      card.className = 'stopped-transition-card';
+      const control = row.controlDelta == null ? '' : `<small>При продолжении проверки годом ранее: <strong>${signed(row.controlDelta,2)}</strong> · ${num(row.controlN)} ${studentWord(row.controlN)}</small>`;
+      card.innerHTML = `<div><strong>${row.fromGrade} → ${row.toGrade} класс</strong><span>${num(row.n)} ${studentWord(row.n)}</span></div><p><span>${fmt(row.before,2)}</span><b>→</b><span>${fmt(row.after,2)}</span></p><em class="${row.delta < 0 ? 'negative' : 'positive'}">${signed(row.delta,2)}</em>${control}`;
+      transitionGrid.appendChild(card);
+    });
+    transitions.append(transitionsTitle, transitionGrid);
+    wrap.append(grid, transitions);
+    wrap.setAttribute('aria-label', `${metric.label}: ${num(metric.n)} учеников; средняя оценка ${fmt(metric.before,2)} до и ${fmt(metric.after,2)} после; изменение ${signed(metric.delta,2)}; снижение у ${num(metric.worseAny)}, снижение не менее чем на 0,5 у ${num(metric.worseHalf)}.`);
+  }
+
   const experimentColors = { '9Б': '#315a8c', '9Д': '#79569a', neutral: '#374151' };
 
   function renderExperiment() {
@@ -457,9 +547,15 @@
     document.querySelectorAll('#ai-parallel-grade-controls button').forEach(item=>item.classList.toggle('active',item===button));
     renderAiImpact();
   }));
+  document.querySelectorAll('#stopped-metric-controls button').forEach(button => button.addEventListener('click',()=>{
+    state.stoppedMetric=button.dataset.metric;
+    document.querySelectorAll('#stopped-metric-controls button').forEach(item=>{item.classList.toggle('active',item===button);item.setAttribute('aria-pressed',String(item===button));});
+    renderStoppedAnalysis();
+  }));
   renderArchiveDistribution();
   renderScatter();
   renderAiImpact();
+  renderStoppedAnalysis();
   renderExperiment();
   renderExperimentRisk();
 })();

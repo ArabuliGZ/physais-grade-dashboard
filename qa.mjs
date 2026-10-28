@@ -22,7 +22,14 @@ async function inspect(name, viewport, screenshot) {
   await page.waitForSelector('#scatter-chart svg');
   await page.waitForSelector('#ai-cohort-chart .ai-era-card');
   await page.waitForSelector('#ai-parallel-chart .ai-era-card');
+  await page.waitForSelector('#stopped-analysis .stopped-change-stack');
   await page.waitForSelector('#experiment-gap-chart .experiment-gap-point');
+  const stoppedOrdinaryReading = await page.locator('#stopped-analysis').getAttribute('aria-label');
+  await page.locator('#stopped-metric-controls').getByRole('button', { name: 'Экзаменационная оценка', exact: true }).click();
+  const stoppedExamReading = await page.locator('#stopped-analysis').getAttribute('aria-label');
+  interaction.stoppedMetricSwitches = stoppedOrdinaryReading.includes('113 учеников') && stoppedExamReading.includes('88 учеников') && stoppedExamReading.includes('−0,07');
+  interaction.stoppedExamTransitions = await page.locator('#stopped-analysis .stopped-transition-card').count();
+  await page.locator('#stopped-metric-controls').getByRole('button', { name: 'Обычные оценки', exact: true }).click();
   const fixedReading = await page.locator('#experiment-gap-chart').getAttribute('aria-label');
   const fixedAxes = await page.locator('#experiment-gap-chart .experiment-axis').allTextContents();
   await page.locator('#experiment-sample-controls').getByRole('button', { name: 'Все писавшие', exact: true }).click();
@@ -97,6 +104,9 @@ async function inspect(name, viewport, screenshot) {
     aiParallelGradeControls: document.querySelectorAll('#ai-parallel-grade-controls button').length,
     aiStacks: document.querySelectorAll('#ai-impact .ai-stack').length,
     aiSegments: document.querySelectorAll('#ai-impact .ai-bar-segment').length,
+    stoppedPopulation: document.querySelector('#stopped-policy-population')?.textContent,
+    stoppedTransitionCards: document.querySelectorAll('#stopped-analysis .stopped-transition-card').length,
+    stoppedChangeSegments: document.querySelectorAll('#stopped-analysis .stopped-change-segment').length,
     groups: document.querySelector('#stat-groups')?.textContent,
     homeworkStatPresent: Boolean(document.querySelector('#stat-homework')),
     overflow: document.documentElement.scrollWidth - window.innerWidth,
@@ -108,6 +118,7 @@ async function inspect(name, viewport, screenshot) {
   await page.locator('#distribution').screenshot({ path: path.join(root, '..', 'tmp', `physais-distribution-${name}.png`) });
   await page.locator('#correlation').screenshot({ path: path.join(root, '..', 'tmp', `physais-correlation-${name}.png`) });
   await page.locator('#ai-impact').screenshot({ path: path.join(root, '..', 'tmp', `physais-ai-${name}.png`) });
+  await page.locator('#checking-stopped').screenshot({ path: path.join(root, '..', 'tmp', `physais-stopped-${name}.png`), style: '.topbar{visibility:hidden}' });
   await page.locator('#homework-experiment').screenshot({ path: path.join(root, '..', 'tmp', `physais-experiment-${name}.png`), style: '.topbar{visibility:hidden}' });
   await page.locator('.experiment-details summary').click();
   await page.locator('.experiment-details').screenshot({ path: path.join(root, '..', 'tmp', `physais-experiment-risk-${name}.png`) });
@@ -135,6 +146,7 @@ const failed = Object.values(results).some(result =>
   result.experimentGapPoints !== 5 || !result.experimentStudents.includes('40 учеников') ||
   result.distributionSegments !== 16 || result.homeworkHighlights !== 1 || !result.homeworkPeriodsMatch || result.inferredHomeworkPeriods !== 2 || result.points < 1 || result.pointGrades < 1 || result.groups !== '21' ||
   result.aiEraCards !== 2 || result.aiGradeControls !== 3 || result.aiCohortGradeControls !== 3 || result.aiCohortCards !== 2 || result.aiParallelCards !== 2 || result.aiParallelGroups !== 1 || result.aiParallelGradeControls !== 2 || result.aiStacks !== 12 || result.aiSegments !== 48 ||
+  !result.stoppedMetricSwitches || result.stoppedExamTransitions !== 2 || !result.stoppedPopulation?.includes('116') || result.stoppedTransitionCards !== 3 || result.stoppedChangeSegments !== 5 ||
   result.histogramBars !== 12 || !result.modalVisible || !result.modalClosed ||
   result.homeworkStatPresent || result.overflow > 1
 );

@@ -1070,6 +1070,118 @@ for row in con.execute(
 ):
     historical_coverage.append(dict(row))
 
+
+# Same-pupil analysis of the 2014–2015 → 2015–2016 policy change. Homework
+# was recorded in the first year and not checked in the second. The browser
+# receives only aggregate counts; student identifiers never leave this script.
+def historical_pairs(from_year, to_year, from_status, to_status, kind):
+    required = 5 if kind == "dated_marks" else 1
+    result = []
+    for (student_id, year, grade, status), kinds in historical_students.items():
+        if year != from_year or status != from_status:
+            continue
+        before = kinds.get(kind, [])
+        after = historical_students.get(
+            (student_id, to_year, grade + 1, to_status), {}
+        ).get(kind, [])
+        if len(before) < required or len(after) < required:
+            continue
+        before_mean = statistics.mean(before)
+        after_mean = statistics.mean(after)
+        result.append({
+            "grade": grade,
+            "before": before_mean,
+            "after": after_mean,
+            "delta": after_mean - before_mean,
+        })
+    return result
+
+
+def change_counts(pairs):
+    deltas = [row["delta"] for row in pairs]
+    epsilon = 1e-9
+    return [
+        {"key": "downLarge", "label": "Снижение ≥ 0,5", "count": sum(value <= -0.5 for value in deltas)},
+        {"key": "downSmall", "label": "Снижение < 0,5", "count": sum(-0.5 < value < -epsilon for value in deltas)},
+        {"key": "same", "label": "Без изменения", "count": sum(abs(value) <= epsilon for value in deltas)},
+        {"key": "upSmall", "label": "Рост < 0,5", "count": sum(epsilon < value < 0.5 for value in deltas)},
+        {"key": "upLarge", "label": "Рост ≥ 0,5", "count": sum(value >= 0.5 for value in deltas)},
+    ]
+
+
+def stopped_check_metric(kind, label):
+    pairs = historical_pairs(
+        "2014-2015", "2015-2016", "recorded_check", "no_recorded_check", kind
+    )
+    grades = sorted({row["grade"] for row in pairs})
+    control_pairs = [
+        row for row in historical_pairs(
+            "2013-2014", "2014-2015", "recorded_check", "recorded_check", kind
+        )
+        if row["grade"] in grades
+    ]
+    transitions = []
+    for grade in grades:
+        selected = [row for row in pairs if row["grade"] == grade]
+        selected_control = [row for row in control_pairs if row["grade"] == grade]
+        transitions.append({
+            "fromGrade": grade,
+            "toGrade": grade + 1,
+            "n": len(selected),
+            "before": round(mean(row["before"] for row in selected), 3),
+            "after": round(mean(row["after"] for row in selected), 3),
+            "delta": round(mean(row["delta"] for row in selected), 3),
+            "controlN": len(selected_control),
+            "controlDelta": round(mean(row["delta"] for row in selected_control), 3)
+            if selected_control else None,
+        })
+    return {
+        "id": kind,
+        "label": label,
+        "n": len(pairs),
+        "before": round(mean(row["before"] for row in pairs), 3),
+        "after": round(mean(row["after"] for row in pairs), 3),
+        "delta": round(mean(row["delta"] for row in pairs), 3),
+        "worseAny": sum(row["delta"] < 0 for row in pairs),
+        "worseHalf": sum(row["delta"] <= -0.5 for row in pairs),
+        "betterHalf": sum(row["delta"] >= 0.5 for row in pairs),
+        "changes": change_counts(pairs),
+        "control": {
+            "n": len(control_pairs),
+            "delta": round(mean(row["delta"] for row in control_pairs), 3),
+        } if control_pairs else None,
+        "transitions": transitions,
+    }
+
+
+annual_policy_students = defaultdict(set)
+for row in con.execute(
+    """SELECT DISTINCT en.student_id,g.school_year,g.grade_level,h.status
+       FROM enrollments en
+       JOIN teaching_groups g USING(group_id)
+       JOIN homework_coverage h USING(group_id)
+       WHERE g.course='physics' AND h.block_label IS NULL
+         AND g.school_year IN ('2014-2015','2015-2016')"""
+):
+    annual_policy_students[(row["school_year"], row["grade_level"], row["status"])].add(row["student_id"])
+
+stopped_policy_population = 0
+for grade in range(7, 11):
+    stopped_policy_population += len(
+        annual_policy_students[("2014-2015", grade, "recorded_check")]
+        & annual_policy_students[("2015-2016", grade + 1, "no_recorded_check")]
+    )
+
+stopped_check_analysis = {
+    "from": "2014-2015",
+    "to": "2015-2016",
+    "studentsWithBothPolicies": stopped_policy_population,
+    "metrics": [
+        stopped_check_metric("dated_marks", "Обычные оценки"),
+        stopped_check_metric("exam_grade", "Экзаменационная оценка"),
+    ],
+}
+
 data = {
     "crossoverExperiment": build_experiment(con),
     "generated": date.today().isoformat(),
@@ -1107,6 +1219,7 @@ data = {
         "transitions": historical_transitions,
         "examSwitch": historical_exam_switch,
         "ninthGradeDistribution": historical_ninth_rows,
+        "stoppedCheck": stopped_check_analysis,
     },
     "longitudinal": {
         "n": 54,
